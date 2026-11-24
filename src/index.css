@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --color-brand-50: #fff4ed;
+  --color-brand-100: #ffe6d4;
+  --color-brand-200: #ffc9a8;
+  --color-brand-400: #fb8a3c;
+  --color-brand-500: #f26a1b;
+  --color-brand-600: #e2520f;
+  --color-brand-700: #bb3d0f;
+  --color-brand-800: #953214;
+  --color-ink-900: #0c0c0e;
+  --color-ink-800: #17171a;
+  --color-ink-700: #232327;
+  --color-ink-600: #34343a;
+  --shadow-card: 0 1px 2px rgb(16 16 20 / 0.05), 0 1px 3px rgb(16 16 20 / 0.06);
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-zinc-100 text-zinc-900 antialiased; font-feature-settings: 'tnum' 1, 'cv11' 1; }
+  button:not(:disabled), [role='button'], summary, label[for], select { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--color-brand-500); outline-offset: 2px; }
+  input[type='number']::-webkit-inner-spin-button { opacity: 0.4; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #c9c9cf; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+  .dark-scroll::-webkit-scrollbar-thumb { background-color: #3f3f46; }
+}
+
+@keyframes dialog-in { from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.animate-dialog { animation: dialog-in 0.16s ease-out; }
+.animate-fade { animation: fade-in 0.16s ease-out; }
+@media (prefers-reduced-motion: reduce) { .animate-dialog, .animate-fade, .animate-spin { animation: none; } }
+
+/* Printable documents (receipts, ID cards, shift reports) are rendered on screen with the same rules used for printing. */
+.print-doc { font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; line-height: 1.45; color: #000; background: #fff; }
+.print-doc .center { text-align: center; }
+.print-doc .right { text-align: right; }
+.print-doc .bold { font-weight: 700; }
+.print-doc .big { font-size: 15px; font-weight: 700; }
+.print-doc .muted { color: #444; }
+.print-doc hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
+.print-doc table { width: 100%; border-collapse: collapse; }
+.print-doc td { padding: 1px 0; vertical-align: top; }
+.print-doc .row { display: flex; justify-content: space-between; gap: 12px; }
