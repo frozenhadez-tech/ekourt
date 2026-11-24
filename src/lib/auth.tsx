@@ -39,11 +39,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const es = new EventSource('/api/events');
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let poll: ReturnType<typeof setInterval> | undefined;
     es.onmessage = () => {
       clearTimeout(timer);
       timer = setTimeout(() => qc.invalidateQueries(), 250);
     };
-    return () => { clearTimeout(timer); es.close(); };
+    // Serverless hosts (Vercel) cannot hold the stream open: the server answers 204, the browser
+    // closes the EventSource for good, and open screens refresh on a 20-second poll instead.
+    es.onerror = () => {
+      if (es.readyState !== EventSource.CLOSED || poll) return;
+      poll = setInterval(() => { if (document.visibilityState === 'visible') qc.invalidateQueries(); }, 20_000);
+    };
+    return () => { clearTimeout(timer); clearInterval(poll); es.close(); };
   }, [user, qc]);
 
   const value = React.useMemo<AuthState>(() => ({

@@ -5,6 +5,8 @@ import type { NextFunction, Request, Response } from 'express';
 const clients = new Set<Response>();
 
 export function eventsHandler(req: Request, res: Response) {
+  // Serverless: no long-lived process to fan events out from. 204 tells EventSource to stop; the client polls.
+  if (process.env.VERCEL) { res.status(204).end(); return; }
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
   res.flushHeaders();
   res.write('retry: 5000\n\n');

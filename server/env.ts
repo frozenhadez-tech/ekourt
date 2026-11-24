@@ -19,7 +19,6 @@ export const env = {
   sessionHours: Number(process.env.SESSION_HOURS ?? 12),
   adminEmail: process.env.ADMIN_EMAIL ?? 'admin@ekourt.local',
   adminPassword: process.env.ADMIN_PASSWORD ?? '',
-  uploadDir: path.resolve(rootDir, process.env.UPLOAD_DIR ?? 'uploads'),
 };
 
 export function assertEnv() {

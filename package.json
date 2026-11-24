@@ -9,7 +9,8 @@
     "dev": "concurrently -n api,web -c red,blue \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "tsx watch server/index.ts",
     "dev:web": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && npm run build:api && vite build",
+    "build:api": "esbuild server/vercel.ts --bundle --platform=node --format=esm --packages=external --target=node20 --log-level=warning --outfile=api/index.js",
     "start": "cross-env NODE_ENV=production tsx server/index.ts",
     "db:migrate": "tsx server/migrate.ts",
     "test:api": "tsx tests/workflow.test.ts",
@@ -61,6 +62,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
     "concurrently": "^10.0.7",
+    "esbuild": "^0.28.2",
     "tailwindcss": "^4.3.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.8"

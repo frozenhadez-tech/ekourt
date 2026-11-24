@@ -1,14 +1,11 @@
 // Settings, audit log, notifications and file uploads.
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
 import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { audit } from '../audit';
 import { can } from '../auth';
 import { db, one, tx, type Q } from '../db';
-import { env } from '../env';
 import { badRequest, pageParams, parse, str, zDate, zId } from '../http';
 import { getSettings } from '../services/common';
 
@@ -123,26 +120,32 @@ export async function runMaintenance(q: Q = db) {
 export const uploadsRouter = Router();
 const ALLOWED: Record<string, string> = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'application/pdf': '.pdf' };
 
+// Files are stored in the database (table uploaded_files), not on disk, so serverless hosts work.
+// 4 MB keeps the request under Vercel's 4.5 MB body limit.
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => { fs.mkdirSync(env.uploadDir, { recursive: true }); cb(null, env.uploadDir); },
-    // Server-generated random name: the client's filename never touches the disk path.
-    filename: (_req, file, cb) => cb(null, crypto.randomBytes(16).toString('hex') + (ALLOWED[file.mimetype] ?? '')),
-  }),
-  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => (ALLOWED[file.mimetype] ? cb(null, true) : cb(badRequest('Only JPG, PNG, WEBP or PDF files are allowed'))),
 });
 
 uploadsRouter.post('/', can('players.manage', 'inventory.manage', 'expenses.create', 'expenses.approve'), upload.single('file'), async (req, res) => {
   if (!req.file) throw badRequest('No file received');
-  await audit(db, req, 'file.upload', 'file', null, { name: req.file.filename, size: req.file.size, type: req.file.mimetype });
-  res.status(201).json({ url: `/uploads/${req.file.filename}` });
+  // Server-generated random name: the client's filename is never stored or served.
+  const name = crypto.randomBytes(16).toString('hex') + ALLOWED[req.file.mimetype];
+  await tx(async (q) => {
+    await q.query('insert into uploaded_files (name, mime_type, size_bytes, data, uploaded_by) values ($1,$2,$3,$4,$5)',
+      [name, req.file!.mimetype, req.file!.size, req.file!.buffer, req.user?.id ?? null]);
+    await audit(q, req, 'file.upload', 'file', null, { name, size: req.file!.size, type: req.file!.mimetype });
+  });
+  res.status(201).json({ url: `/uploads/${name}` });
 });
 
-/** Authenticated download; the name is validated so no path can escape the upload folder. */
-uploadsRouter.get('/:name', (req, res) => {
+/** Authenticated download. */
+uploadsRouter.get('/:name', async (req, res) => {
   const name = String(req.params.name);
   if (!/^[a-f0-9]{32}\.(jpg|png|webp|pdf)$/.test(name)) throw badRequest('Invalid file name');
-  res.set('X-Content-Type-Options', 'nosniff');
-  res.sendFile(path.join(env.uploadDir, name), (err) => { if (err && !res.headersSent) res.status(404).json({ error: 'File not found' }); });
+  const file = await one(db, 'select mime_type, data from uploaded_files where name = $1', [name]);
+  if (!file) { res.status(404).json({ error: 'File not found' }); return; }
+  res.set({ 'Content-Type': file.mime_type, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=86400' });
+  res.send(file.data);
 });

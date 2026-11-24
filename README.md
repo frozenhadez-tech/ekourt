@@ -61,11 +61,18 @@ Super Admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `.env`. Sign in with those 
 
 ### Production deployment
 
-Run `npm run build`, then `npm start` on any Node host (a VM, Render, Railway, Fly.io) with `NODE_ENV=production`,
-`DATABASE_URL`, `DATABASE_URL_UNPOOLED` and `JWT_SECRET` set. Serve it over HTTPS: the session cookie is marked
-`Secure` in production. Uploaded files (player photos, receipts) are stored in `UPLOAD_DIR` on the server's disk, so
-give that folder persistent storage. Live updates are in-process; if you run more than one API instance, screens on
-different instances refresh on their normal polling interval instead of instantly.
+**Vercel** (how https://ekourt.vercel.app is hosted): `vercel.json` serves the built web app as static files and
+sends `/api/*` and `/uploads/*` to one serverless function, `api/index.js`, which `npm run build` bundles from
+`server/vercel.ts`. Set `DATABASE_URL`, `DATABASE_URL_UNPOOLED` and `JWT_SECRET` in the Vercel project, then
+`vercel deploy --prod`. Pending migrations apply on the function's first request. On Vercel, screens refresh on a
+20-second poll instead of instantly, and the login throttle counts per function instance.
+
+**Any Node host** (a VM, Render, Railway, Fly.io): run `npm run build`, then `npm start` with `NODE_ENV=production`
+and the same three variables. Serve it over HTTPS: the session cookie is marked `Secure` in production. Live updates
+are instant but in-process; with more than one instance, screens on other instances fall back to polling.
+
+Uploaded files (player photos, receipts; 4 MB limit) are stored in the database table `uploaded_files`, so no host
+needs a persistent disk.
 
 ## Testing
 

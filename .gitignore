@@ -1,4 +1,5 @@
 .neon
+.vercel
 node_modules/
 dist/
 uploads/
@@ -6,3 +7,7 @@ uploads/
 .env.local
 .env.*.local
 *.log
+
+.vercel
+.env*
+!.env.example

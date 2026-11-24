@@ -492,6 +492,26 @@ async function main() {
     eq((await recep.post(`/reservations/${r.data.reservation.id}/cancel`, { reason: 'Customer request' })).data.status, 'cancelled', 'cancelled');
     eq((await recep.post('/reservations', { court_id: courts[3].id, date, start_time: '18:00', duration_hours: 1, customer_name: 'Rebook' })).status, 201, 'slot reusable');
   });
+  await test('uploads are stored in the database and served only to signed-in users', async () => {
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+    const send = async (blob: Blob, filename: string) => {
+      const fd = new FormData();
+      fd.append('file', blob, filename);
+      const res = await fetch(base + '/uploads', { method: 'POST', headers: { 'X-Requested-With': 'ekourt', Cookie: admin.cookie }, body: fd });
+      return { status: res.status, data: (await res.json().catch(() => null)) as any };
+    };
+    const up = await send(new Blob([png], { type: 'image/png' }), '../../evil name.png');
+    eq(up.status, 201, 'upload');
+    ok(/^\/uploads\/[a-f0-9]{32}\.png$/.test(up.data.url), `server-generated name, got ${up.data.url}`);
+    const origin = base.replace(/\/api$/, '');
+    const got = await fetch(origin + up.data.url, { headers: { Cookie: admin.cookie } });
+    eq(got.status, 200, 'download');
+    eq(got.headers.get('content-type'), 'image/png', 'content type');
+    ok(Buffer.from(await got.arrayBuffer()).equals(png), 'bytes round-trip unchanged');
+    eq((await fetch(origin + up.data.url)).status, 401, 'anonymous download');
+    eq((await send(new Blob(['<script>'], { type: 'text/html' }), 'x.html')).status, 400, 'html rejected');
+    eq((await pool.query('select count(*)::int n from uploaded_files where name = $1', [up.data.url.split('/').pop()])).rows[0].n, 1, 'row in database');
+  });
 
   // Deactivate the test logins and restore settings touched above.
   await pool.query(`update employees set is_active = false where email like $1`, [`%.${run}@test.ekourt.local`]);
